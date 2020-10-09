@@ -1,0 +1,23 @@
+---
+- name: Create Consul service definition
+  include_role: name=consul-service
+  vars:
+    consul_config_name: '{{ cassandra_service_name }}'
+    consul_services:
+      - name: '{{ cassandra_service_name }}'
+        tags: ['cassandra', 'logs']
+        # we advertise the port with basic auth
+        port: '{{ cassandra_native_port }}'
+        address: '{{ ansible_local.tinc.vpn_ip }}'
+        meta:
+          # uset do distinguish different clusters
+          cluster_name: '{{ cassandra_cluster_name }}'
+        checks:
+          - id: '{{ cassandra_service_name }}-health'
+            name: Cassandra Healthcheck
+            type: script
+            script: '/bin/systemctl is-active {{ cassandra_service_name }}'
+
+# Necessary for discovery step to work
+- name: Reload Consul service
+  command: 'consul reload'

@@ -1,0 +1,37 @@
+---
+- name: Create data directory
+  file:
+    path: '{{ cassandra_data_dir }}'
+    state: directory
+    owner: '{{ cassandra_service_user }}'
+    group: 'adm'
+    mode: 0775
+
+- name: Create systemd Unit file
+  template:
+    src: 'cassandra.service.j2'
+    dest: '/lib/systemd/system/{{ cassandra_service_name }}.service'
+    mode: 0644
+  register: cassandra_service_file
+
+- name: Reload Systemctl
+  command: systemctl daemon-reload
+  when: cassandra_service_file.changed
+
+- name: (Re)Start Service
+  service:
+    name: '{{ cassandra_service_name }}.service'
+    state: restarted
+    enabled: true
+  when: >
+    cassandra_config_file.changed or
+    cassandra_rackdc_file.changed or
+    cassandra_service_file.changed
+
+- name: Wait for CQL port to open
+  wait_for:
+    port: '{{ cassandra_native_port }}'
+    host: '{{ cassandra_listen_address }}'
+    connect_timeout: 3
+    delay: 3
+    timeout: 120
